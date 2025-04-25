@@ -1,6 +1,6 @@
 
 $urlBase = "https://data.lacity.org/resource/2nrs-mtv8.json"
-$apptoken = "PLulAWZsXXOQ0zVHMJCgjxYzV"  
+$apptoken = "ENV_APP_TOKEN"  
 $headers = @{
     "Accept" = "application/json"
     "X-App-Token" = $apptoken
