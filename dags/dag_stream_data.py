@@ -1,110 +1,98 @@
 from airflow import DAG
+from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
-import requests
-import json
 import snowflake.connector
 import os
+
+LOAD_DATA_SCRIPT_PATH = '/home/lagraoui/CrimeData/dags/scripts/load_data.pw1'
 default_args = {
     'owner': 'airflow',
     'start_date': datetime(2023, 4, 1),
     'retries': 1,
-    'retry_delay': timedelta(minutes=1)
+    'retry_delay': timedelta(minutes=1),
 }
 
-def fetch_and_load():
-    url = "https://opensky-network.org/api/states/all"
-    response = requests.get(url)
-    if response.status_code != 200:
-        raise Exception("Failed to fetch data")
-    data = response.json()
-    timestamp = data.get("time")
-    states = data.get("states", [])
+def create_view():
     ctx = snowflake.connector.connect(
-        user=os.environ.get("SNOWFLAKE_USER"),
-        password=os.environ.get("SNOWFLAKE_PASSWORD"),
-        account=os.environ.get("SNOWFLAKE_ACCOUNT"),
+        user=os.environ["SNOWFLAKE_USER"],
+        password=os.environ["SNOWFLAKE_PASSWORD"],
+        account=os.environ["SNOWFLAKE_ACCOUNT"],
         warehouse='COMPUTE_WH',
-        database='OpenSky',
+        database='CrimeData',
         schema='PUBLIC'
     )
-
     cs = ctx.cursor()
-    try: # it should be VIEW not TABLE
+    try:
         cs.execute("""
-            CREATE TABLE IF NOT EXISTS open_sky_data (
-                id NUMBER AUTOINCREMENT,
-                timestamp_uid NUMBER,
-                icao24 STRING,
-                callsign STRING,
-                origin_country STRING,
-                time_position NUMBER,
-                last_contact NUMBER,
-                longitude FLOAT,
-                latitude FLOAT,
-                baro_altitude FLOAT,
-                on_ground BOOLEAN,
-                velocity FLOAT,
-                true_track FLOAT,
-                vertical_rate FLOAT,
-                sensors VARIANT,
-                geo_altitude FLOAT,
-                squawk STRING,
-                spi BOOLEAN,
-                position_source NUMBER,
-                ingestion_time TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP
-            )
+         CREATE OR REPLACE VIEW crime_data_view AS
+            SELECT
+                t.$1::VARCHAR                AS dr_no,
+                TO_TIMESTAMP(t.$2, 'MM/DD/YYYY HH12:MI:SS AM') AS date_rptd,
+                TO_TIMESTAMP(t.$3, 'MM/DD/YYYY HH12:MI:SS AM') AS date_occ,
+                t.$4          AS time_occ,
+                t.$5         AS area,
+                t.$6                         AS area_name,
+                t.$7                         AS rpt_dist_no,
+                t.$8        AS part_1_2,
+                t.$9                         AS crm_cd,
+                t.$10                        AS crm_cd_desc,
+                t.$11                        AS mocodes,
+                t.$12        AS vict_age,
+                t.$13                        AS vict_sex,
+                t.$14                        AS vict_descent,
+                t.$15       AS premis_cd,
+                t.$16                        AS premis_desc,
+                t.$17                        AS weapon_used_cd,
+                t.$18                        AS weapon_desc,
+                t.$19                        AS status,
+                t.$20                        AS status_desc,
+                t.$21                        AS crm_cd_1,
+                t.$22                        AS crm_cd_2,
+                t.$23                        AS crm_cd_3,
+                t.$24                        AS crm_cd_4,
+                t.$25                        AS location,
+                t.$26                        AS cross_street,
+                t.$27          AS lat,
+                t.$28         AS lon
+            FROM @CRIMEDATA.PUBLIC.CRIME_DATA_SOURCE (FILE_FORMAT => 'my_csv_format') t;
         """)
-
-        insert_stmt = """
-            INSERT INTO open_sky_data (
-                timestamp_uid, icao24, callsign, origin_country, time_position, last_contact,
-                longitude, latitude, baro_altitude, on_ground, velocity, true_track,
-                vertical_rate, sensors, geo_altitude, squawk, spi, position_source
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s
-            )
-        """
-
-        for state in states:
-            cs.execute(insert_stmt, (
-                timestamp,
-                state[0],  # icao24
-                state[1],  # callsign
-                state[2],  # origin_country
-                state[3],  # time_position
-                state[4],  # last_contact
-                state[5],  # longitude
-                state[6],  # latitude
-                state[7],  # baro_altitude
-                state[8],  # on_ground
-                state[9],  # velocity
-                state[10], # true_track
-                state[11], # vertical_rate
-                state[12], # sensors
-                state[13], # geo_altitude
-                state[14], # squawk
-                state[15], # spi
-                state[16]  # position_source
-                # state[17]  # aircraft category
-                
-            ))
     finally:
         cs.close()
         ctx.close()
 
 with DAG(
-    'opensky_to_snowflake',
+    'crime_data_to_snowflake',
     default_args=default_args,
-    schedule_interval='30 8 * * *',
-    catchup=False
+    schedule_interval='30 8 */15 * *',
+    catchup=False,
 ) as dag:
-    
-    load_data = PythonOperator(
-        task_id='fetch_and_load_data',
-        python_callable=fetch_and_load
+
+    # 1) download full CSV via PowerShell pagination script
+    download_crime_data = BashOperator(
+        task_id='download_crime_data',
+        bash_command=f"""
+            pwsh -File {LOAD_DATA_SCRIPT_PATH}
+        """
     )
 
-    load_data
+    # 2) PUT in stage #define SNOWSQL_PWD in the environment
+    stage = BashOperator(
+        task_id='stage_and_copy',
+        bash_command=r"""
+        snowsql \
+            --config ~/.snowsql/config \
+          -q "\
+            CREATE OR REPLACE FILE FORMAT my_csv_format TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1; \
+            truncate view CRIMEDATA.PUBLIC.CRIME_DATA_SOURCE; \
+            PUT file:///tmp/lapd_crime_data_all.csv @CRIMEDATA.PUBLIC.CRIME_DATA_SOURCE AUTO_COMPRESS=TRUE;"
+        """
+    )
+
+    # 3) create the JSON view (your existing PythonOperator)
+    build_view = PythonOperator(
+        task_id='create_view',
+        python_callable=create_view,
+    )
+
+    download_crime_data >> stage >> build_view

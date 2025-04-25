@@ -1,0 +1,25 @@
+
+$urlBase = "https://data.lacity.org/resource/2nrs-mtv8.json"
+$apptoken = "PLulAWZsXXOQ0zVHMJCgjxYzV"  
+$headers = @{
+    "Accept" = "application/json"
+    "X-App-Token" = $apptoken
+}
+
+$limit = 50000
+$offset = 0
+$allData = @()
+
+do {
+    $urlBase = "https://data.lacity.org/resource/2nrs-mtv8.json"
+    $pagedUrl = "$urlBase`?`$limit=$limit&`$offset=$offset"
+
+    $chunk = Invoke-RestMethod -Uri $pagedUrl -Headers $headers
+    if ($chunk.Count -gt 0) {
+        $allData += $chunk
+        $offset += $limit
+        Write-Host "Fetched $($allData.Count) records so far..."
+    }
+} while ($chunk.Count -eq $limit)
+
+$allData | ConvertTo-Csv -NoTypeInformation | Out-File '/tmp/lapd_crime_data_all.csv'

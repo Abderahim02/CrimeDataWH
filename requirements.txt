@@ -1,3 +1,4 @@
 dbt-core
 dbt-snowflake
 airflow-apache
+# install snowsql
