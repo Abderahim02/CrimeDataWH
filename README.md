@@ -1,6 +1,6 @@
 # Crime Data  
 
-This project provides tools to retrieve and process data from the [OpenSky Network]([https://opensky-network.org/](https://data.lacity.org/Public-Safety/Crime-Data-from-2020-to-Present/2nrs-mtv8/about_data), a platform that offers open access to crime data in LA in US from 2020 updating every two weeks.
+This project provides tools to retrieve and process data from the [Crime Data in LA](https://data.lacity.org/Public-Safety/Crime-Data-from-2020-to-Present/2nrs-mtv8/about_data), a platform that offers open access to crime data in LA in US from 2020 updating every two weeks.
 
 ## Features
 
