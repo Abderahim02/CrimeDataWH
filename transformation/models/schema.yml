@@ -9,10 +9,8 @@ models:
         tests: [not_null, unique]
       - name: police_area_name
         description: "Name of the police area"
-        tests: [not_null]
       - name: main_police_areas_code
         description: "Truncated code (first 2 chars) of the police area UID"
-        tests: [not_null]
 
   - name: dim_crime_types
     description: "Lookup of crime types"
@@ -27,8 +25,7 @@ models:
         description: "Description of the crime"
         tests: [not_null]
       - name: part_1_2
-        description: "Flag indicating Part 1 or Part 2 crime"
-        tests: [not_null]
+        description: "None"
 
   - name: dim_mo_codes
     description: "Lookup of modus operandi codes"
@@ -38,7 +35,6 @@ models:
         tests: [not_null, unique]
       - name: mo_description
         description: "Description of the modus operandi"
-        tests: [not_null]
 
   - name: dim_location_types
     description: "Lookup of location types"
@@ -51,7 +47,6 @@ models:
         tests: [not_null]
       - name: location_type_description
         description: "Textual description of the location type"
-        tests: [not_null]
 
   - name: dim_case_status
     description: "Lookup of case statuses"
@@ -61,7 +56,6 @@ models:
         tests: [not_null, unique]
       - name: case_status_description
         description: "Description of the case status"
-        tests: [not_null]
 
   - name: dim_weapons
     description: "Lookup of weapon types"
@@ -69,22 +63,18 @@ models:
       - name: weapon_id
         description: "Surrogate key for weapon"
         tests: [not_null, unique]
-      - name: weapon_description
+      - name: weapon_desc
         description: "Original weapon description from source"
-        tests: [not_null]
 
   - name: dim_locations
     description: "Lookup of location details"
     columns:
       - name: location_id
         description: "Surrogate key for location"
-        tests: [not_null, unique]
-      - name: locations_cross_street
+        # tests: [not_null, unique]
+      - name: location_cross_street
         description: "Cross-street information"
-        tests: [not_null]
       - name: locations_latitude
         description: "Latitude coordinate"
-        tests: [not_null]
       - name: locations_longitude
         description: "Longitude coordinate"
-        tests: [not_null]

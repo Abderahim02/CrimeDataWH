@@ -11,7 +11,8 @@ with locations as (
     cross_street as location_cross_street,
     LAT as  locations_latitude,
     LON as  locations_longitude
-  from {{ source('crime_data_hub', 'crime_data_view') }} --look for source table, geographic data fro LA
+  from {{ source('crime_data_hub', 'crime_data_view') }}
+   --look for source table, geographic data fro LA
   where location is not null
 )
 select *
