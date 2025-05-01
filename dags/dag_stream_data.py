@@ -68,7 +68,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # 1) download full CSV via PowerShell pagination script
+    # download full CSV via PowerShell pagination script
     download_crime_data = BashOperator(
         task_id='download_crime_data',
         bash_command=f"""
@@ -76,20 +76,26 @@ with DAG(
         """
     )
 
-    # 2) PUT in stage #define SNOWSQL_PWD in the environment
+    # PUT in stage #define SNOWSQL_PWD in the environment
     stage = BashOperator(
         task_id='stage_and_copy',
         bash_command=r"""
-        snowsql \
-            --config ~/.snowsql/config \
-          -q "\
-            CREATE OR REPLACE FILE FORMAT my_csv_format TYPE = 'CSV' FIELD_DELIMITER = ',' SKIP_HEADER = 1; \
-            truncate view CRIMEDATA.PUBLIC.CRIME_DATA_SOURCE; \
-            PUT file:///tmp/lapd_crime_data_all.csv @CRIMEDATA.PUBLIC.CRIME_DATA_SOURCE AUTO_COMPRESS=TRUE;"
+    snowsql \
+    --config ~/.snowsql/config \
+    -q "
+        CREATE OR REPLACE FILE FORMAT my_csv_format 
+            TYPE = 'CSV' 
+            FIELD_DELIMITER = ',' 
+            SKIP_HEADER = 1 
+            FIELD_OPTIONALLY_ENCLOSED_BY = '\"'
+            TRIM_SPACE = TRUE
+            ESCAPE_UNENCLOSED_FIELD = NONE;
+        drop view CRIMEDATA.PUBLIC.CRIME_DATA_VIEW;
+        PUT file:///tmp/lapd_crime_data_all.csv @CRIMEDATA.PUBLIC.CRIME_DATA_SOURCE AUTO_COMPRESS=TRUE;"
         """
     )
 
-    # 3) create the JSON view (your existing PythonOperator)
+    # create the view 
     build_view = PythonOperator(
         task_id='create_view',
         python_callable=create_view,

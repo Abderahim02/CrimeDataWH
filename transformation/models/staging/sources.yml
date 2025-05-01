@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: crime_data_hub
+    database: CRIMEDATA
+    schema: PUBLIC
+    tables:
+      - name: crime_data_view
+        description: "A view containing crime data for analysis"

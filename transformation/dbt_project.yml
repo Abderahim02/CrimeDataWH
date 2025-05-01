@@ -1,0 +1,66 @@
+name: 'CRIME_DATA_ANALYSIS'
+version: 1.0.0
+
+require-dbt-version: ">=0.18.0"
+config-version: 2
+
+# Configure database connection profile for dbt to use
+profile: 'CRIME_DATA_ANALYSIS'
+
+# Set paths for dbt objects
+analysis-paths: ["analysis"]
+data-paths: ["data"]
+macro-paths: ["macros"]
+source-paths: ["models"]
+snapshot-paths: ["snapshots"]
+test-paths: ["tests"]
+
+log-path: "logs"
+target-path: "target"
+
+
+# # Set query behavior: prepend comments and quoting
+# query-comment: "{{ query_comment(node) }}"
+# quoting:
+#   database: false
+#   schema: false
+#   identifier: false
+
+
+# DBT MODELS
+models:
+    CRIME_DATA_ANALYSIS:
+        +enabled: true
+        +materialized: view
+        
+        staging:
+            +enabled: true
+            +schema: intermediate
+        compute:
+            +enabled: true
+            +materialized: view
+        published:
+            +enabled: true
+            +materialized: view
+                                
+        marts:
+            +enabled: true
+            +materialized: table
+            core:
+                +schema: core
+
+
+# # Project variables
+# vars:
+#     {company_name}:
+#         dbt_project_created_date: '2020-09-21'  # <-- Set as date when dbt project first created
+#         analysis_start_date: '2016-01-01'  # <-- Earliest time when organization started tracking data
+#         analysis_end_date: dbt_utils.current_timestamp()
+#         source_database: lake  # <-- Set as name of the raw source database where data is ingested
+
+
+# Data seeds
+seeds:
+    +quote_columns: false
+    +schema: intermediate
+    
