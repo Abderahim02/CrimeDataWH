@@ -44,4 +44,4 @@ joined as (
 
 )
 
-select * from joined
+select distinct * from joined
